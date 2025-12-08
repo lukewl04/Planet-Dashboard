@@ -1,0 +1,113 @@
+.solar-system-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.solar-system {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #111 0, #000 70%);
+  overflow: visible;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Sun */
+.sun {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffeb3b, #ff9800);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 25px rgba(255, 193, 7, 0.9);
+}
+
+/* Orbits */
+.orbit-circle {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
+
+/* Planets (dots) */
+.planet-dot {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Simple per-planet styles */
+.planet-mercury {
+  width: 6px;
+  height: 6px;
+  background: #b0bec5;
+}
+
+.planet-venus {
+  width: 8px;
+  height: 8px;
+  background: #ffcc80;
+}
+
+.planet-earth {
+  width: 8px;
+  height: 8px;
+  background: #64b5f6;
+}
+
+.planet-mars {
+  width: 7px;
+  height: 7px;
+  background: #ef5350;
+}
+
+.planet-jupiter {
+  width: 11px;
+  height: 11px;
+  background: #ffb74d;
+}
+
+.planet-saturn {
+  width: 10px;
+  height: 10px;
+  background: #ffe082;
+}
+
+.planet-uranus {
+  width: 9px;
+  height: 9px;
+  background: #80deea; /* light teal */
+}
+
+.planet-neptune {
+  width: 9px;
+  height: 9px;
+  background: #7986cb; /* bluish */
+}
+
+
+/* Legend under the viz */
+.solar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
