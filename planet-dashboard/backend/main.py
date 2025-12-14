@@ -1,94 +1,94 @@
 # backend/main.py
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from astropy.coordinates import EarthLocation, AltAz, get_body
-from astropy.time import Time
-import astropy.units as u
-from datetime import datetime
-from astropy.coordinates import solar_system_ephemeris, get_body_barycentric_posvel
+from datetime import datetime, timezone
 import math
 
+import astropy.units as u
+from astropy.coordinates import (
+    AltAz,
+    EarthLocation,
+    get_body,
+    get_body_barycentric_posvel,
+    solar_system_ephemeris,
+)
+from astropy.time import Time
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+app = FastAPI(title="Planet Tracker API")
 
-# Allow requests from a browser (localhost front-end)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # in dev, allow everything
+    allow_origins=["*"],  # dev only — lock this down in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+PLANETS = ("mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune")
+SOLAR_SYSTEM_BODIES = ("mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune")
 
-PLANETS = ["mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
+DEFAULT_LAT = 55.9533  # Edinburgh
+DEFAULT_LON = -3.1883
+DEFAULT_HEIGHT_M = 50
+
+
+def now_utc() -> Time:
+    return Time(datetime.now(timezone.utc))
+
+
+def to_location(lat: float, lon: float, height_m: float = DEFAULT_HEIGHT_M) -> EarthLocation:
+    return EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=height_m * u.m)
 
 
 @app.get("/solar_system")
 def solar_system():
-    """
-    Return heliocentric-ish positions of planets in AU in a 2D plane.
-    We use barycentric coordinates (close enough for a visualisation).
-    """
-    t = Time(datetime.utcnow())
+    """Return barycentric planet positions (AU) for a simple solar system visualisation."""
+    t = now_utc()
+    bodies = []
 
-    bodies = ["mercury", "venus", "earth", "mars", "jupiter", "saturn","uranus", "neptune"]
-
-    data = []
-    # Use a JPL ephemeris for accurate positions
+    # "builtin" is fine for a visualisation; switch to a JPL ephemeris if you need higher accuracy
     with solar_system_ephemeris.set("builtin"):
-        for name in bodies:
-            pos, vel = get_body_barycentric_posvel(name, t)
-            # Cartesian position in AU
-            x = pos.x.to(u.au).value
-            y = pos.y.to(u.au).value
-            z = pos.z.to(u.au).value
-            r = math.sqrt(x**2 + y**2 + z**2)
+        for name in SOLAR_SYSTEM_BODIES:
+            pos, _vel = get_body_barycentric_posvel(name, t)
 
-            data.append({
-                "name": name.capitalize(),
-                "x": x,
-                "y": y,
-                "z": z,
-                "r": r,
-            })
+            x = pos.x.to_value(u.au)
+            y = pos.y.to_value(u.au)
+            z = pos.z.to_value(u.au)
+            r = math.sqrt(x * x + y * y + z * z)
 
-    return {
-        "time_utc": t.isot,
-        "bodies": data,
-    }
+            bodies.append(
+                {
+                    "name": name.capitalize(),
+                    "x": x,
+                    "y": y,
+                    "z": z,
+                    "r": r,
+                }
+            )
+
+    return {"time_utc": t.isot, "bodies": bodies}
 
 
 @app.get("/planets")
-def planets_now(lat: float = 55.9533, lon: float = -3.1883):
-    """
-    lat, lon come from query params, e.g. /planets?lat=51.5&lon=-0.12
-    Defaults are Edinburgh if none are provided.
-    """
-    print("DEBUG planets_now called with lat=", lat, "lon=", lon) 
-    location = EarthLocation(
-        lat=lat * u.deg,
-        lon=lon * u.deg,
-        height=50 * u.m,
-    )
-
-    t = Time(datetime.utcnow())
+def planets_now(lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON):
+    """Return current planet alt/az for a given lat/lon (defaults to Edinburgh)."""
+    t = now_utc()
+    location = to_location(lat, lon)
     frame = AltAz(obstime=t, location=location)
 
-    data = []
+    planets = []
     for name in PLANETS:
-        body_altaz = get_body(name, t, location).transform_to(frame)
-        data.append({
-            "name": name.capitalize(),
-            "alt": float(body_altaz.alt.deg),
-            "az": float(body_altaz.az.deg),
-            "visible": bool(body_altaz.alt.deg > 0),
-        })
+        altaz = get_body(name, t, location).transform_to(frame)
+        alt = float(altaz.alt.deg)
+        az = float(altaz.az.deg)
 
-    return {
-        "time_utc": t.isot,
-        "lat": lat,
-        "lon": lon,
-        "planets": data,
-    }
+        planets.append(
+            {
+                "name": name.capitalize(),
+                "alt": alt,
+                "az": az,
+                "visible": alt > 0.0,
+            }
+        )
 
+    return {"time_utc": t.isot, "lat": lat, "lon": lon, "planets": planets}

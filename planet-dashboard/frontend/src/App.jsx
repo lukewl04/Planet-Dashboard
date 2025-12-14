@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SolarSystem from "./SolarSystem";
+import "./themes.css";
 
 const CITIES = [
   { name: "Paris", lat: 48.8566, lon: 2.3522 },
@@ -10,51 +11,71 @@ const CITIES = [
   { name: "Wellington (NZ)", lat: -41.2865, lon: 174.7762 },
 ];
 
+const API_BASE = "http://127.0.0.1:8000";
+
+const planetAccent = (name = "") => {
+  const n = name.toLowerCase();
+  if (n.includes("mercury")) return { glow: "glow-cyan", dot: "dot-cyan" };
+  if (n.includes("venus")) return { glow: "glow-amber", dot: "dot-amber" };
+  if (n.includes("mars")) return { glow: "glow-red", dot: "dot-red" };
+  if (n.includes("jupiter")) return { glow: "glow-orange", dot: "dot-orange" };
+  if (n.includes("saturn")) return { glow: "glow-gold", dot: "dot-gold" };
+  if (n.includes("uranus")) return { glow: "glow-sky", dot: "dot-sky" };
+  if (n.includes("neptune")) return { glow: "glow-blue", dot: "dot-blue" };
+  return { glow: "glow-purple", dot: "dot-purple" };
+};
+
+const formatTelemetry = (data) =>
+  `UTC ${data.time_utc}  •  LAT ${data.lat.toFixed(4)}  •  LON ${data.lon.toFixed(4)}`;
+
 function App() {
   const [selectedCity, setSelectedCity] = useState(CITIES[0]);
   const [timeText, setTimeText] = useState("");
   const [planets, setPlanets] = useState([]);
 
-  const loadPlanets = async (city = selectedCity) => {
-    try {
-      const { lat, lon } = city;
-      const url = `http://127.0.0.1:8000/planets?lat=${lat}&lon=${lon}`;
-      console.log("Requesting:", url);
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      setTimeText(
-        `Time (UTC): ${data.time_utc} | Lat: ${data.lat.toFixed(
-          4
-        )}, Lon: ${data.lon.toFixed(4)}`
-      );
-      setPlanets(data.planets);
-    } catch (err) {
-      console.error("Error loading planets:", err);
-      setTimeText("Failed to load data.");
-      setPlanets([]);
-    }
-  };
+  const visibleCount = useMemo(
+    () => planets.filter((p) => p.visible).length,
+    [planets]
+  );
 
   useEffect(() => {
-    loadPlanets(selectedCity);
+    let cancelled = false;
 
-    const intervalId = setInterval(() => {
-      loadPlanets(selectedCity);
-    }, 60000);
+    const loadPlanets = async () => {
+      try {
+        const { lat, lon } = selectedCity;
+        const res = await fetch(`${API_BASE}/planets?lat=${lat}&lon=${lon}`);
+        const data = await res.json();
 
-    return () => clearInterval(intervalId);
+        if (cancelled) return;
+        setTimeText(formatTelemetry(data));
+        setPlanets(Array.isArray(data.planets) ? data.planets : []);
+      } catch (err) {
+        console.error("Error loading planets:", err);
+        if (cancelled) return;
+        setTimeText("Telemetry link lost. Retrying...");
+        setPlanets([]);
+      }
+    };
+
+    loadPlanets();
+    const id = setInterval(loadPlanets, 60_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [selectedCity]);
 
   const handleCityChange = (e) => {
     const [latStr, lonStr] = e.target.value.split(",");
-    const city = {
-      name: e.target.options[e.target.selectedIndex].text,
-      lat: parseFloat(latStr),
-      lon: parseFloat(lonStr),
-    };
-    setSelectedCity(city);
+    const option = e.target.options[e.target.selectedIndex];
+
+    setSelectedCity({
+      name: option.text,
+      lat: Number(latStr),
+      lon: Number(lonStr),
+    });
   };
 
   const handlePlanetClick = (p) => {
@@ -62,92 +83,149 @@ function App() {
     speechSynthesis.speak(new SpeechSynthesisUtterance(text));
   };
 
-
-
   return (
-    <div className="container py-4">
-      <div className="row justify-content-center">
-        {/* Left column: Planet tracker */}
-        <div className="col-md-6 col-lg-5 mb-4">
-          <div className="card shadow-sm h-100">
-            <div className="card-body">
-              <h1 className="h3 mb-3 text-center">Planet Tracker</h1>
+    <div className="space-app">
+      {/* Fixed background layers */}
+      <div className="space-bg" />
+      <div className="stars" />
+      <div className="stars stars2" />
+      <div className="vignette" />
 
-              <div className="mb-3">
-                <label htmlFor="city" className="form-label">
-                  City
-                </label>
-                <select
-                  id="city"
-                  className="form-select"
-                  onChange={handleCityChange}
-                  value={`${selectedCity.lat},${selectedCity.lon}`}
-                >
-                  {CITIES.map((city) => (
-                    <option
-                      key={city.name}
-                      value={`${city.lat},${city.lon}`}
-                    >
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
+      {/* UI content */}
+      <div className="space-content">
+        <div className="container-fluid py-4">
+          <div className="container">
+            <header className="mb-4 text-center">
+              <div className="badge hud-badge mb-2">ORBITAL TELEMETRY</div>
+              <h1 className="hud-title mb-1">Planet Tracker</h1>
+              <div className="hud-sub">
+                Mission target:{" "}
+                <span className="hud-highlight">{selectedCity.name}</span>
+                {" • "}
+                Visible bodies:{" "}
+                <span className="hud-highlight">{visibleCount}</span>
               </div>
+            </header>
 
-              <p className="text-muted small">{timeText || "Loading..."}</p>
+            <div className="row justify-content-center g-4">
+              {/* Mission Control */}
+              <section className="col-md-6 col-lg-5">
+                <div className="hud-card h-100">
+                  <div className="hud-card-header">
+                    <div className="hud-chip">MISSION CONTROL</div>
+                    <div className="hud-line" />
+                  </div>
 
-              <h2 className="h6 mt-3 mb-2">Planet positions</h2>
+                  <div className="hud-card-body">
+                    <label htmlFor="city" className="hud-label">
+                      Ground Station
+                    </label>
 
-              {planets.length === 0 ? (
-                <p className="text-muted">No data yet.</p>
-              ) : (
-                <ul className="list-group">
-                  {planets.map((p) => (
-                    <button
-                      key={p.name}
-                      className="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
-                      onClick={() => handlePlanetClick(p)}
+                    <select
+                      id="city"
+                      className="hud-select"
+                      onChange={handleCityChange}
+                      value={`${selectedCity.lat},${selectedCity.lon}`}
                     >
-                      <div>
-                        <div
-                          className={
-                            "fw-semibold" + (p.visible ? " text-success" : "")
-                          }
+                      {CITIES.map((city) => (
+                        <option
+                          key={city.name}
+                          value={`${city.lat},${city.lon}`}
                         >
-                          {p.name}
-                        </div>
-                        <div className="small text-muted">
-                          alt={p.alt.toFixed(2)}°, az={p.az.toFixed(2)}°
+                          {city.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="hud-telemetry mt-3">
+                      <div className="hud-telemetry-dot" />
+                      <div className="hud-telemetry-text">
+                        {timeText || "Linking to ephemeris..."}
+                      </div>
+                    </div>
+
+                    <div className="d-flex align-items-center justify-content-between mt-4 mb-2">
+                      <h2 className="hud-section-title m-0">Planet Positions</h2>
+                      <span className="hud-small">tap to speak</span>
+                    </div>
+
+                    {planets.length === 0 ? (
+                      <div className="hud-empty">
+                        <div className="spinner" />
+                        <div className="hud-empty-text">
+                          Awaiting telemetry...
                         </div>
                       </div>
-                      <span
-                        className={
-                          "badge rounded-pill " +
-                          (p.visible ? "bg-success" : "bg-secondary")
-                        }
-                      >
-                        {p.visible ? "Visible" : "Below horizon"}
-                      </span>
-                    </button>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+                    ) : (
+                      <div className="hud-list">
+                        {planets.map((p) => {
+                          const { glow, dot } = planetAccent(p.name);
+                          return (
+                            <button
+                              key={p.name}
+                              className={`hud-item ${glow}`}
+                              onClick={() => handlePlanetClick(p)}
+                              type="button"
+                            >
+                              <div className="d-flex align-items-start gap-3">
+                                <div className={`hud-dot ${dot}`} />
+                                <div className="flex-grow-1">
+                                  <div
+                                    className={`hud-item-title ${
+                                      p.visible ? "is-visible" : ""
+                                    }`}
+                                  >
+                                    {p.name}
+                                  </div>
+                                  <div className="hud-item-meta">
+                                    ALT {p.alt.toFixed(2)}°{" "}
+                                    <span className="hud-meta-divider">•</span>{" "}
+                                    AZ {p.az.toFixed(2)}°
+                                  </div>
+                                </div>
+                              </div>
 
-        {/* Right column: Solar system visualisation */}
-        <div className="col-md-6 col-lg-5 mb-4">
-          <div className="card shadow-sm h-100 d-flex align-items-center justify-content-center">
-            <div className="card-body d-flex flex-column align-items-center">
-              <SolarSystem />
+                              <span
+                                className={`hud-pill ${
+                                  p.visible ? "pill-ok" : "pill-off"
+                                }`}
+                              >
+                                {p.visible ? "IN VIEW" : "BELOW HORIZON"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              {/* Simulation Bay */}
+              <section className="col-md-6 col-lg-5">
+                <div className="hud-card h-100">
+                  <div className="hud-card-header">
+                    <div className="hud-chip">SIMULATION BAY</div>
+                    <div className="hud-line" />
+                  </div>
+
+                  <div className="hud-card-body d-flex flex-column align-items-center justify-content-center">
+                    <div className="hud-frame w-100">
+                      <SolarSystem />
+                    </div>
+
+                    <div className="hud-small mt-3 text-center">
+                      Tip: match the “IN VIEW” planets with your local sky.
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-
 }
 
 export default App;
