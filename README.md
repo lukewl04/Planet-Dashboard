@@ -4,6 +4,11 @@ A full-stack planet visibility dashboard that shows real-time planetary position
 
 Built using **React** on the frontend and **FastAPI + Astropy** on the backend.
 
+
+
+  <img width="1709" height="946" alt="Screenshot 2025-12-14 at 20 39 03" src="https://github.com/user-attachments/assets/d64ea61e-edf8-4cc1-9986-cf12bd1bf9f6" />
+
+
 ---
 
 ## ✨ Features
@@ -22,6 +27,8 @@ Built using **React** on the frontend and **FastAPI + Astropy** on the backend.
 
 ### Frontend
 - **React**
+-
+
 - **JavaScript (ES6)**
 - **Bootstrap**
 - **Custom CSS (space HUD theme)**
