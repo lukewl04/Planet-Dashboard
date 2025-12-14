@@ -27,8 +27,6 @@ Built using **React** on the frontend and **FastAPI + Astropy** on the backend.
 
 ### Frontend
 - **React**
--
-
 - **JavaScript (ES6)**
 - **Bootstrap**
 - **Custom CSS (space HUD theme)**
